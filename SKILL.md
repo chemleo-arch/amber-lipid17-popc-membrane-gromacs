@@ -107,3 +107,6 @@ python add_posre.py
 - `scripts/add_posre.py`：脂质重原子 posre 插入脚本（实测版）
 - `mdp/em.mdp`、`mdp/nvt_mem.mdp`、`mdp/npt_mem.mdp`、`mdp/npt_mem_free.mdp`：四阶段平衡 mdp（含 comm-mode=none）
 - `templates/eq_mem.sbatch`：Slurm 平衡作业模板（分区/资源参数按集群修改）
+
+## 许可证
+MIT License，版权 © 2026 chemleo-arch。详见 LICENSE。

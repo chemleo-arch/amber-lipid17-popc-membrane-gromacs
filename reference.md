@@ -147,3 +147,6 @@ s.save('popc_gmx.gro', overwrite=True)
 ## 原始来源
 
 本技能整理自 2026-08-14 卤素二肽-膜插入模拟项目（chatId mssitrzx55bt1ak6）的实测流程。命令与脚本均为集群上跑通版本。
+
+## 许可证
+MIT License，版权 © 2026 chemleo-arch。详见 LICENSE。

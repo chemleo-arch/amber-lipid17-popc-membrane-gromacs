@@ -44,3 +44,7 @@
 - parmed heredoc 经 ssh 会被吞，改用 Python API
 - 膜平衡受限 NPT 用 Berendsen（tau_p=5）+ `refcoord-scaling=com`，无约束段用 Parrinello-Rahman；勿在初始膜 + posres 下用 C-rescale（会震荡拉坏坐标、崩 DCU VMFault）
 - genion 水组选 `Water`（非 `WAT`），且水须连续；体系中性时可直接跳过 genion
+
+## 许可证
+
+MIT License，版权 © 2026 chemleo-arch。详见 [LICENSE](LICENSE)。
