@@ -1,7 +1,7 @@
 ---
 name: amber-lipid17-popc-membrane-gromacs
 description: 免 CHARMM-GUI 构建纯 POPC 双层膜并转 GROMACS 的完整管线：AmberTools 自带 packmol-memgen（LIPID17 参数化）→ parmed API 转 top/gro → 脂质重原子 posre → 半各向异性平衡（受限段 Berendsen，无约束段 Parrinello-Rahman）。当用户需要搭建 POPC/脂质双层膜、准备膜-配体/膜-蛋白插入模拟的前置膜体系、或把 AMBER 膜拓扑转成 GROMACS 运行时使用。触发词：POPC、双层膜、Lipid17、packmol-memgen、膜平衡、膜搭建、membrane bilayer、GROMACS 膜。
-version: 1.0.0
+version: 1.1.0
 ---
 
 # 免 CHARMM-GUI 构建纯 POPC 双层并转 GROMACS（LIPID17）
