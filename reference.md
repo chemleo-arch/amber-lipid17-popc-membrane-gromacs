@@ -106,12 +106,12 @@ s.save('popc_gmx.gro', overwrite=True)
 |---|---|---|---|---|
 | EM | em.mdp | 50k 步 steep | 无 | 无 |
 | NVT | nvt_mem.mdp | 100 ps | `-DPOSRES` | 无 |
-| NPT | npt_mem.mdp | 100 ps | `-DPOSRES` | C-rescale semiisotropic |
-| NPT free | npt_mem_free.mdp | 5 ns（起步） | 无 | C-rescale semiisotropic |
+| NPT | npt_mem.mdp | 100 ps | `-DPOSRES` | Berendsen semiisotropic（tau_p=5）+ refcoord-scaling=com |
+| NPT free | npt_mem_free.mdp | 5 ns（起步） | 无 | Parrinello-Rahman semiisotropic（tau_p=5） |
 
 膜平衡特有要点：
 
-1. **半各向异性控压**：`pcoupltype = semiisotropic`，`compressibility = 4.5e-5 4.5e-5`，`ref_p = 1.0 1.0`，`tau_p = 2.0`。各向同性会错误约束膜面积；semiisotropic 让 xy 面积与 z 厚度独立响应。用较新的 `C-rescale`（比 Berendsen 更稳、比 Parrinello-Rahman 更耐初始构型）。
+1. **半各向异性控压**：`pcoupltype = semiisotropic`，`compressibility = 4.5e-5 4.5e-5`，`ref_p = 1.0 1.0`，`tau_p = 5.0`。各向同性会错误约束膜面积；semiisotropic 让 xy 面积与 z 厚度独立响应。**受限 NPT 用 `Berendsen`（弱耦合、不震荡）并设 `refcoord-scaling = com`**（否则压耦 + 绝对位置约束打架），**无约束生产段用 `Parrinello-Rahman`**。切勿在初始膜 + posres 下用 C-rescale：本会话实测盒子单步缩放 mu 冲到 1.45，拉坏坐标触发 DCU VMFault 崩作业。
 2. **`comm-mode = none`**：三阶段 mdp 都要。有位置约束时质心移除（默认）会与约束冲突，grompp 会警告；关闭后警告消失，也避免伪影。
 3. 力场一致性：AMBER 参数（gen_pairs=yes、fudgeLJ=0.5、fudgeQQ=0.8333）由 parmed 转换自动带入，无需手改。
 4. NVT→NPT 用 `-t` 续接（.cpt），NPT→NPT free 同样。
@@ -133,6 +133,8 @@ s.save('popc_gmx.gro', overwrite=True)
 | 5 | grompp 报 net charge -0.0003 | AMBER 电荷浮点舍入 | 无害，`-maxwarn 2` |
 | 6 | 中文注释脚本 python2 报错 | 编码声明缺失 | 文件头加 `# -*- coding: utf-8 -*-` |
 | 7 | Lipid17 残基数吓人（PA/OL/PC 各 154） | 脂质多残基表示 | parmed 已合并为单 moleculetype，勿手动拆分 |
+| 8 | 受限 NPT 崩 DCU VMFault（`pressure scaling more than 1%`，mu>1.4） | C-rescale 在初始膜 + posres 下震荡拉坏坐标 | 受限段改 Berendsen（tau_p=5）+ `refcoord-scaling = com`，无约束段 Parrinello-Rahman |
+| 9 | genion 报水组不存在或 `Water is not continuous` | 水组应选 `Water`（非 WAT）；水被聚集体切成两段不连续 | 选 `Water`；保证水连续（重排到末尾）或体系中性时跳过 genion |
 
 ## 后续衔接（膜-配体插入）
 
@@ -140,6 +142,7 @@ s.save('popc_gmx.gro', overwrite=True)
 1. 用 packmol/`gmx insert-molecules` 把配体聚集体放到膜上方
 2. 合并拓扑：GAFF2 配体 itp + LIPID17 膜 top（两者原子类型零冲突：GAFF2 全小写、LIPID17 大写/混合；`[ defaults ]` 均为 AMBER 参数，可直接拼接）
 3. 再次 posre + 半各向异性平衡，再做无偏插入或伞采样 PMF
+4. 加离子注意：genion 水组选 `Water`（非 `WAT`），且水必须连续（聚集体别插在膜水与后加水之间）；体系电中性时直接跳过 genion 最稳妥
 
 ## 原始来源
 

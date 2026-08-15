@@ -12,7 +12,7 @@
 2. `--parametrize` 走 tleap + LIPID17，产出 AMBER prmtop/inpcrd
 3. parmed Python API 转 GROMACS top/gro
 4. 插入脂质重原子位置约束（`#ifdef POSRES`）
-5. 半各向异性 C-rescale 平衡（EM → NVT → NPT → NPT free）
+5. 半各向异性平衡（EM → NVT → NPT[受限 Berendsen] → NPT free[Parrinello-Rahman]）
 
 ## 目录结构
 
@@ -42,4 +42,5 @@
 - pip 装不到 packmol-memgen，需用 AmberTools 内置版并设 `PYTHONPATH`
 - `--distxy_fix` 只收单值（`70` 而非 `70 70`）
 - parmed heredoc 经 ssh 会被吞，改用 Python API
-- 膜平衡必须半各向异性 + C-rescale + 脂质重原子 posre + `comm-mode=none`
+- 膜平衡受限 NPT 用 Berendsen（tau_p=5）+ `refcoord-scaling=com`，无约束段用 Parrinello-Rahman；勿在初始膜 + posres 下用 C-rescale（会震荡拉坏坐标、崩 DCU VMFault）
+- genion 水组选 `Water`（非 `WAT`），且水须连续；体系中性时可直接跳过 genion

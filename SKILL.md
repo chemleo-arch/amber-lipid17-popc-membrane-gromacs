@@ -1,6 +1,6 @@
 ---
 name: amber-lipid17-popc-membrane-gromacs
-description: 免 CHARMM-GUI 构建纯 POPC 双层膜并转 GROMACS 的完整管线：AmberTools 自带 packmol-memgen（LIPID17 参数化）→ parmed API 转 top/gro → 脂质重原子 posre → 半各向异性 C-rescale 平衡。当用户需要搭建 POPC/脂质双层膜、准备膜-配体/膜-蛋白插入模拟的前置膜体系、或把 AMBER 膜拓扑转成 GROMACS 运行时使用。触发词：POPC、双层膜、Lipid17、packmol-memgen、膜平衡、膜搭建、membrane bilayer、GROMACS 膜。
+description: 免 CHARMM-GUI 构建纯 POPC 双层膜并转 GROMACS 的完整管线：AmberTools 自带 packmol-memgen（LIPID17 参数化）→ parmed API 转 top/gro → 脂质重原子 posre → 半各向异性平衡（受限段 Berendsen，无约束段 Parrinello-Rahman）。当用户需要搭建 POPC/脂质双层膜、准备膜-配体/膜-蛋白插入模拟的前置膜体系、或把 AMBER 膜拓扑转成 GROMACS 运行时使用。触发词：POPC、双层膜、Lipid17、packmol-memgen、膜平衡、膜搭建、membrane bilayer、GROMACS 膜。
 version: 1.0.0
 ---
 
@@ -65,14 +65,14 @@ python add_posre.py
 ```
 注意：拓扑里已有 `[ exclusions ]`，脚本只插入 posre 块、不动其他；所有脂质同构，一份 posre 块全局有效。
 
-### 5. 平衡 mdp（半各向异性 + C-rescale）
+### 5. 平衡 mdp（半各向异性：受限段 Berendsen，无约束段 Parrinello-Rahman）
 四阶段（mdp 文件见 mdp/ 目录，sbatch 模板见 templates/eq_mem.sbatch）：
 1. EM（steep，50k 步）
 2. NVT 100 ps：`define = -DPOSRES`，V-rescale 300 K
-3. NPT 100 ps：`define = -DPOSRES`，**`pcoupl = C-rescale` + `pcoupltype = semiisotropic`**（膜必须半各向异性：xy 平面与 z 方向独立控压）
-4. NPT 无约束 5 ns（起步）：同上半各向异性，去掉 POSRES
+3. NPT 100 ps（受限）：`define = -DPOSRES`，**`pcoupl = Berendsen` + `pcoupltype = semiisotropic` + `tau_p = 5.0` + `refcoord-scaling = com`**（膜必须半各向异性：xy 平面与 z 方向独立控压；初始膜 + 位置约束下用 C-rescale 会剧烈震荡拉坏坐标，见关键陷阱 4）
+4. NPT 无约束 5 ns（起步）：`pcoupl = Parrinello-Rahman` + `pcoupltype = semiisotropic` + `tau_p = 5.0`，去掉 POSRES
 
-膜平衡关键设置：`compressibility = 4.5e-5 4.5e-5`、`ref_p = 1.0 1.0`、`tau_p = 2.0`、PME rcoulomb=1.2、rvdw=1.2、DispCorr=EnerPres、constraints=h-bonds，且三阶段 mdp 都要 **`comm-mode = none`**（有位置约束时必须关闭质心移除，否则 grompp 报 COM 警告且可能引入伪影）。
+膜平衡关键设置：`compressibility = 4.5e-5 4.5e-5`、`ref_p = 1.0 1.0`、受限段 `tau_p = 5.0`、PME rcoulomb=1.2、rvdw=1.2、DispCorr=EnerPres、constraints=h-bonds，且三阶段 mdp 都要 **`comm-mode = none`**（有位置约束时必须关闭质心移除，否则 grompp 报 COM 警告且可能引入伪影）。受限 NPT 还要加 **`refcoord-scaling = com`**（压耦 + 绝对位置约束不设会让参考坐标与盒子缩放打架），其 grompp 用 `-maxwarn 3`（Berendsen 会多一个系综警告）。
 
 ### 6. 验证与警告判读
 - 逐级 `grompp`（EM→NVT→NPT→NPT free）通过
@@ -84,10 +84,13 @@ python add_posre.py
 1. pip 装不到 packmol-memgen → 用 AmberTools 内置版（python2.7 + 手动 PYTHONPATH）
 2. `--distxy_fix` 只收**单值**：写 `70`，写 `70 70` 会报 "unrecognized arguments: 70"
 3. parmed heredoc 经 ssh 被吞 → 用 Python API 脚本（scp 上传后执行）
-4. 膜平衡必须 semiisotropic + C-rescale + 脂质重原子 posre + comm-mode=none，缺一不可
+4. 初始受限 NPT 切勿用 C-rescale——posres + C-rescale 在初始膜上剧烈震荡（盒子单步缩放 mu>1.4），拉坏坐标触发 DCU VMFault 崩作业；受限段用 Berendsen（tau_p=5）+ refcoord-scaling=com，无约束生产段再用 Parrinello-Rahman
 5. LIPID17 脂质是多残基表示（PA/OL/PC），parmed 后合并为一个 moleculetype
 6. 净电荷警告是 AMBER 电荷舍入，非真带电
 7. 含中文注释的脚本在 python2 下跑需加 `# -*- coding: utf-8 -*-` 编码声明
+8. genion 加水离子时水组选 `Water`（GROMACS 自动识别的 3 原子 TIP3P 组），不是残基名 `WAT`——genion 的可选组里根本没有 WAT，只有 Water/SOL
+9. genion 要求水**连续**：把配体/聚集体插在「膜水」与「后加的水」之间会把水组切成两段，报 `The solvent group Water is not continuous`——要么把水重排到坐标末尾，要么直接跳过 genion
+10. 体系电中性时可**跳过 genion**：膜自带 0.15 M KCl、肽/水均中性时无需额外加盐，EM 直接用 solvate 后的 gro（多体系对比时同条件更公平）
 
 ## 验证清单
 - [ ] `packmol-memgen --help` 正常输出（PYTHONPATH 生效）

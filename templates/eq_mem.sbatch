@@ -35,7 +35,7 @@ gmx_mpi grompp -f nvt_mem.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr -maxwa
 $G -deffnm nvt
 
 echo "== NPT posres semiiso =="
-gmx_mpi grompp -f npt_mem.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn 2
+gmx_mpi grompp -f npt_mem.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn 3   # Berendsen 多一个系综警告
 $G -deffnm npt
 
 echo "== NPT free semiiso 5ns =="
